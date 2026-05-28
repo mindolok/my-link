@@ -5,39 +5,38 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --shadow-neo: 6px 6px 0px 0px var(--shadow-color, #000);
+  --shadow-neo-hover: 2px 2px 0px 0px var(--shadow-color, #000);
+  --shadow-neo-lg: 12px 12px 0px 0px var(--shadow-color, #000);
   
-  --animate-blob: blob 7s infinite;
-  
-  @keyframes blob {
-    0% { transform: translate(0px, 0px) scale(1); }
-    33% { transform: translate(30px, -50px) scale(1.1); }
-    66% { transform: translate(-20px, 20px) scale(0.9); }
-    100% { transform: translate(0px, 0px) scale(1); }
-  }
+  --color-neo-yellow: #fcd34d;
+  --color-neo-pink: #f9a8d4;
+  --color-neo-blue: #93c5fd;
+  --color-neo-green: #86efac;
 }
 
 :root {
-  --background: #f8fafc;
-  --foreground: #020617;
+  --background: #fdfdfd;
+  --foreground: #000000;
+  --shadow-color: #000000;
+  --bg-pattern: radial-gradient(#d1d5db 2px, transparent 2px);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #020617;
-    --foreground: #f8fafc;
+    --background: #111111;
+    --foreground: #fdfdfd;
+    --shadow-color: #fdfdfd;
+    --bg-pattern: radial-gradient(#374151 2px, transparent 2px);
   }
 }
 
 body {
   background: var(--background);
+  background-image: var(--bg-pattern);
+  background-size: 24px 24px;
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   overflow-x: hidden;
-}
-
-.animation-delay-2000 {
-  animation-delay: 2s;
-}
-.animation-delay-4000 {
-  animation-delay: 4s;
 }
