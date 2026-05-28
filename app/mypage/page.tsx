@@ -16,34 +16,50 @@ import {
 } from "@/components/ui/dialog"
 import Link from "next/link"
 import { Plus, Share2 } from "lucide-react"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import * as z from "zod"
+
+const formSchema = z.object({
+  title: z.string().min(1, "제목을 입력해주세요.").trim(),
+  url: z.string().min(1, "주소를 입력해주세요.").trim().refine((val) => val.startsWith("http://") || val.startsWith("https://"), {
+    message: "유효한 URL을 입력해주세요. (http:// 또는 https:// 시작)",
+  }),
+})
+
+type FormValues = z.infer<typeof formSchema>
 
 export default function MyPage() {
   const [links, setLinks] = useState<LinkItem[]>(dummyLinks)
   const [open, setOpen] = useState(false)
   
-  const [title, setTitle] = useState("")
-  const [url, setUrl] = useState("")
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    mode: "onChange",
+    defaultValues: {
+      title: "",
+      url: "",
+    },
+  })
 
-  const handleAddLink = () => {
-    if (!title.trim() || !url.trim()) return
+  const { register, handleSubmit, formState: { errors }, reset } = form
 
+  const onSubmit = (data: FormValues) => {
     const newLink: LinkItem = {
       id: Date.now().toString(),
-      title: title.trim(),
-      url: url.trim(),
+      title: data.title,
+      url: data.url,
     }
 
     setLinks([newLink, ...links])
-    setTitle("")
-    setUrl("")
+    reset()
     setOpen(false)
   }
 
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen)
     if (!isOpen) {
-      setTitle("")
-      setUrl("")
+      reset()
     }
   }
 
@@ -96,32 +112,32 @@ export default function MyPage() {
               <DialogHeader>
                 <DialogTitle>새 링크 추가</DialogTitle>
               </DialogHeader>
-              <div className="flex flex-col gap-4 py-4">
+              <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 py-4">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="title">제목</Label>
                   <Input 
                     id="title" 
                     placeholder="링크 제목 입력" 
-                    value={title}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
+                    {...register("title")}
                   />
+                  {errors.title && <span className="text-sm font-medium text-red-500">{errors.title.message}</span>}
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="url">주소</Label>
                   <Input 
                     id="url" 
                     placeholder="https://..." 
-                    value={url}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUrl(e.target.value)}
+                    {...register("url")}
                   />
+                  {errors.url && <span className="text-sm font-medium text-red-500">{errors.url.message}</span>}
                 </div>
                 <Button 
-                  onClick={handleAddLink} 
+                  type="submit"
                   className="mt-4 bg-[#5B5FC7] text-white hover:bg-[#5B5FC7]/90"
                 >
                   추가하기
                 </Button>
-              </div>
+              </form>
             </DialogContent>
           </Dialog>
         </header>
