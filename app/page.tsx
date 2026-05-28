@@ -1,4 +1,3 @@
-import React from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -46,12 +45,12 @@ export default function Page() {
             let hostname = "example.com"
             try {
               hostname = new URL(link.url).hostname
-            } catch (e) {
+            } catch {
               // URL 파싱 실패 시 무시
             }
 
-            // 구글 파비콘 API URL 구성
-            const faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`
+            // 구글 파비콘 V2 API (더 안정적이고 차단 확률이 적음)
+            const faviconUrl = `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${hostname}&size=64`
 
             return (
               <Link

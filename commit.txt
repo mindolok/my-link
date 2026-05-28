@@ -1,6 +1,6 @@
-feat: 모던 UI 적용 및 구글 파비콘 API, Avatar 컴포넌트 도입
+fix: IDE 에러 및 파비콘 노출 오류 수정
 
-- 기존의 거친 네오브루탈리즘 스타일을 제거하고 부드럽고 세련된 모던 UI(소프트 섀도우, 둥근 모서리, 부드러운 트랜지션)로 디자인 개편 (`app/page.tsx`)
-- shadcn/ui 라이브러리의 `Avatar` 컴포넌트를 새롭게 설치 및 연동하여 프로필 영역 시각화 (`components/ui/avatar.tsx`, `app/page.tsx`)
-- 고정된 lucide 아이콘 대신, 링크 URL에서 호스트네임을 추출하여 구글 파비콘 API를 통해 실제 웹사이트 로고를 동적으로 표시하도록 로직 추가 (`app/page.tsx`)
-- 프로젝트 개발 가이드라인(`GEMINI.md`) 내 디자인 원칙을 모던 UI에 맞게 수정 반영
+- 블로그 링크를 실제 네이버 블로그 URL(blog.naver.com)로 변경하여 파비콘이 정상적으로 표시되도록 수정 (`data/links.ts`)
+- 광고 차단기 등에 의해 파비콘 이미지가 막히는 문제를 해결하기 위해, 구글 파비콘 API 주소를 안정적인 V2 (t2.gstatic.com)로 교체 (`app/page.tsx`)
+- `layout.tsx`에서 에디터 에러를 유발하던 미사용 `Geist_Mono` 폰트 및 불필요한 `React` 임포트 제거
+- `page.tsx`에서 에디터 경고를 유발하던 미사용 catch 변수 제거 및 불필요한 `React` 임포트 제거

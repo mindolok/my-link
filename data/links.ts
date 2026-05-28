@@ -21,7 +21,7 @@ export const dummyLinks: LinkItem[] = [
   {
     id: "3",
     title: "블로그",
-    url: "https://blog.example.com",
+    url: "https://blog.naver.com",
     icon: "file-text",
   },
   {
