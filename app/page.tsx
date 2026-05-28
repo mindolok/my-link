@@ -1,47 +1,57 @@
+import React from "react"
 import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { dummyLinks } from "@/data/links"
-import {
-  Camera,
-  Video,
-  FileText,
-  Code,
-  Briefcase,
-  LinkIcon,
-} from "lucide-react"
-import type { ElementType } from "react"
+import { Share2 } from "lucide-react"
 import Link from "next/link"
-
-const iconMap: Record<string, ElementType> = {
-  instagram: Camera,
-  youtube: Video,
-  "file-text": FileText,
-  github: Code,
-  briefcase: Briefcase,
-}
 
 export default function Page() {
   return (
-    <div className="flex min-h-svh flex-col items-center bg-background p-6 text-foreground md:p-12 lg:p-24">
-      <div className="flex w-full max-w-md flex-col gap-10">
+    <div className="flex min-h-svh flex-col items-center bg-slate-50 p-6 text-foreground dark:bg-zinc-950 md:p-12 lg:p-24 selection:bg-primary/20">
+      <div className="flex w-full max-w-md flex-col gap-8">
         {/* Profile Header */}
-        <div className="mt-4 flex flex-col items-center gap-4 text-center">
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary text-4xl font-bold text-primary-foreground">
-            M
+        <div className="relative mt-8 flex flex-col items-center gap-5 text-center">
+          {/* Share Button */}
+          <div className="absolute right-0 top-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <Share2 className="h-5 w-5" />
+              <span className="sr-only">공유하기</span>
+            </Button>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">MyLink</h1>
-            <p className="mt-2 text-muted-foreground">
-              저의 모든 링크를 한 곳에서 확인하세요.
+
+          <Avatar className="h-24 w-24 border-2 border-background shadow-sm ring-2 ring-primary/10 transition-transform duration-300 hover:scale-105">
+            {/* 임시 프로필 이미지 */}
+            <AvatarImage src="https://github.com/shadcn.png" alt="Profile image" />
+            <AvatarFallback>ML</AvatarFallback>
+          </Avatar>
+          
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              MyLink
+            </h1>
+            <p className="text-sm font-medium text-muted-foreground sm:text-base">
+              Developer & Creator
             </p>
           </div>
         </div>
 
         {/* Links List */}
-        <div className="flex w-full flex-col gap-4">
+        <div className="mt-2 flex w-full flex-col gap-4">
           {dummyLinks.map((link) => {
-            const IconComponent = link.icon
-              ? iconMap[link.icon] || LinkIcon
-              : LinkIcon
+            let hostname = "example.com"
+            try {
+              hostname = new URL(link.url).hostname
+            } catch (e) {
+              // URL 파싱 실패 시 무시
+            }
+
+            // 구글 파비콘 API URL 구성
+            const faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`
 
             return (
               <Link
@@ -51,11 +61,22 @@ export default function Page() {
                 rel="noopener noreferrer"
                 className="group block w-full outline-none"
               >
-                <Card className="cursor-pointer border-2 transition-all hover:border-primary hover:bg-accent/50 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                  <CardContent className="flex items-center justify-between p-5">
+                <Card
+                  className="cursor-pointer border border-border/40 bg-background/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                >
+                  <CardContent className="flex items-center p-4 sm:p-5">
                     <div className="flex items-center gap-4">
-                      <IconComponent className="h-6 w-6 text-muted-foreground transition-colors group-hover:text-primary" />
-                      <span className="text-lg font-semibold">
+                      {/* 파비콘 컨테이너 */}
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary/50 transition-colors group-hover:bg-primary/10">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img 
+                          src={faviconUrl} 
+                          alt={`${link.title} icon`} 
+                          className="h-6 w-6 object-contain"
+                          loading="lazy"
+                        />
+                      </div>
+                      <span className="text-base font-semibold tracking-tight transition-colors group-hover:text-primary sm:text-lg">
                         {link.title}
                       </span>
                     </div>
