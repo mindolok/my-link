@@ -31,7 +31,7 @@ export default function Page() {
           
           <div className="space-y-2">
             <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              MyLink
+              서지민
             </h1>
             <p className="text-sm font-medium text-muted-foreground sm:text-base">
               Developer & Creator
@@ -63,10 +63,9 @@ export default function Page() {
                 <Card
                   className="cursor-pointer border border-border/40 bg-background/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                 >
-                  <CardContent className="flex items-center p-4 sm:p-5">
-                    <div className="flex items-center gap-4">
-                      {/* 파비콘 컨테이너 */}
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary/50 transition-colors group-hover:bg-primary/10">
+                  <CardContent className="flex w-full items-center p-4 sm:p-5">
+                    <div className="relative flex w-full items-center justify-center">
+                      <div className="absolute left-0 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary/50 transition-colors group-hover:bg-primary/10">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img 
                           src={faviconUrl} 
