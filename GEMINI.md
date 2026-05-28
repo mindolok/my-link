@@ -1,63 +1,63 @@
-# MyLink Project Guide
+# MyLink 프로젝트 가이드
 
-This file defines the structure, technology stack, development conventions, and key workflows for the MyLink project. The Gemini CLI agent must follow this guide during development.
+이 파일은 MyLink 프로젝트의 구조, 기술 스택, 개발 규칙 및 핵심 워크플로우를 정의합니다. 제미나이(Gemini) CLI 에이전트는 개발 중에 이 가이드를 반드시 따라야 합니다.
 
-## 1. Project Overview
-* **Purpose:** A 'multi-link profile' service that aggregates multiple links (SNS, portfolio, blog, etc.) into a single integrated page for sharing.
-* **Target Audience:** Developers, Creators.
-* **Core Philosophy:** Concise UI/UX, immediate management experience through **Inline Editing**.
+## 1. 프로젝트 개요
+* **목적:** 여러 링크(SNS, 포트폴리오, 블로그 등)를 공유하기 위해 하나의 통합된 페이지로 모아주는 '멀티 링크 프로필' 서비스.
+* **타겟 사용자:** 개발자, 크리에이터.
+* **핵심 철학:** 간결한 UI/UX, **인라인 편집(Inline Editing)**을 통한 즉각적인 관리 경험.
 
-## 2. Technology Stack
-* **Framework:** Next.js 16 (App Router)
-* **Library:** React 19
-* **Styling:** Tailwind CSS v4
-* **UI Components:** shadcn/ui (based on Radix UI)
-* **Backend/Auth:** Firebase (Authentication, Firestore) - *To be configured*
-* **Icons:** Lucide React
-* **Theme:** next-themes (Dark mode support)
+## 2. 기술 스택
+* **프레임워크:** Next.js 16 (App Router)
+* **라이브러리:** React 19
+* **스타일링:** Tailwind CSS v4
+* **UI 컴포넌트:** shadcn/ui (Radix UI 기반)
+* **백엔드/인증:** Firebase (Authentication, Firestore) - *설정 예정*
+* **아이콘:** Lucide React
+* **테마:** next-themes (다크 모드 지원)
 
-## 3. Project Structure
+## 3. 프로젝트 구조
 ```text
 D:\vibe_coding\my-link\
-├── app/                # Next.js App Router (Pages and Layouts)
-├── components/         # Shared Components
-│   └── ui/             # shadcn/ui Components
-├── docs/               # Planning and Design Docs (PRD, Scenarios, Wireframes)
-├── hooks/              # Custom React Hooks
-├── lib/                # Utility Functions and Config (Firebase, etc.)
-└── public/             # Static Assets
+├── app/                # Next.js App Router (페이지 및 레이아웃)
+├── components/         # 공통 컴포넌트
+│   └── ui/             # shadcn/ui 컴포넌트
+├── docs/               # 기획 및 디자인 문서 (PRD, 시나리오, 와이어프레임)
+├── hooks/              # 커스텀 React 훅
+├── lib/                # 유틸리티 함수 및 설정 (Firebase 등)
+└── public/             # 정적 에셋
 ```
 
-## 4. Development Conventions and Rules
+## 4. 개발 규칙 및 컨벤션
 
-### Language & Communication
-* **Token Efficiency:** All communication, documentation, tasks, and commit messages must be written in **English** to save tokens.
+### 언어 및 소통
+* **한국어 작성:** 모든 대화, 문서화, 태스크, 커밋 메시지는 항상 **한국어(Korean)**로 작성해야 합니다.
 
-### UI/UX Principles
-* **Mobile-First:** All screens must function perfectly and look beautiful on mobile devices.
-* **Inline Editing:** When modifying profile info (name, bio) or link info (title, URL), use **Inline Editing** where the text is edited directly on the spot without moving to a separate form page.
-* **Consistency:** Maintain styles provided by `shadcn/ui` and use the `cn()` function in `@lib/utils.ts` for class composition.
+### UI/UX 원칙
+* **반응형 디자인:** 모든 화면은 모바일 기기부터 데스크탑까지 완벽하게 작동하고 아름답게 보여야 합니다. (네오브루탈리즘 스타일 적용)
+* **인라인 편집 (Inline Editing):** 프로필 정보(이름, 소개)나 링크 정보(제목, URL)를 수정할 때 별도의 폼 페이지로 이동하지 않고 그 자리에서 텍스트를 바로 편집하는 방식을 사용합니다.
+* **일관성:** `shadcn/ui`에서 제공하는 스타일을 유지하며, 클래스 조합 시 `@/lib/utils.ts`의 `cn()` 함수를 사용합니다.
 
-### Coding Rules
-* **TypeScript:** All code must pass strict type checking.
-* **Components:** Use Server Components (RSC) by default; use 'use client' only when state management is required.
-* **Icons:** Use `lucide-react`.
-* **Path Alias:** Use the `@/` prefix (e.g., `@/components/...`, `@/lib/...`).
-* **File References:** Use the `@` prefix when referring to documents (e.g., `@docs/PRD.md`).
+### 코딩 규칙
+* **TypeScript:** 모든 코드는 엄격한 타입 검사를 통과해야 합니다.
+* **컴포넌트:** 기본적으로 서버 컴포넌트(RSC)를 사용하며, 상태 관리가 필요한 경우에만 'use client'를 사용합니다.
+* **아이콘:** `lucide-react`를 사용합니다.
+* **경로 별칭 (Path Alias):** `@/` 접두사를 사용합니다 (예: `@/components/...`, `@/lib/...`).
+* **문서 참조:** 문서를 참조할 때는 `@` 접두사를 사용합니다 (예: `@docs/PRD.md`).
 
-### Data Management
-* **Firebase Firestore:** Store user data in the `users` collection and link data in the `links` sub-collection under the user document.
-* **Favicons:** When adding a link, use the Google Favicon API (`https://www.google.com/s2/favicons?domain=DOMAIN&sz=64`) to automatically extract the icon.
+### 데이터 관리
+* **Firebase Firestore:** 사용자 데이터는 `users` 컬렉션에, 링크 데이터는 사용자 문서 하위의 `links` 서브 컬렉션에 저장합니다.
+* **파비콘 (Favicons):** 링크를 추가할 때 Google 파비콘 API (`https://www.google.com/s2/favicons?domain=DOMAIN&sz=64`)를 사용하여 자동으로 아이콘을 추출합니다.
 
-## 5. Key Commands
-* `npm run dev`: Start development server
-* `npm run build`: Production build
-* `npm run start`: Run built app
-* `npm run lint`: Lint check
-* `npm run format`: Code formatting (Prettier)
-* `npm run typecheck`: TypeScript type check
+## 5. 주요 명령어
+* `npm run dev`: 개발 서버 시작
+* `npm run build`: 프로덕션 빌드
+* `npm run start`: 빌드된 앱 실행
+* `npm run lint`: 린트 검사
+* `npm run format`: 코드 포매팅 (Prettier)
+* `npm run typecheck`: TypeScript 타입 검사
 
-## 6. Reference Documents
-* [Product Requirements Document (PRD)](@docs/PRD.md)
-* [User Scenarios](@docs/USER_SCENARIO.md)
-* [Wireframe](@docs/Wireframe.md)
+## 6. 참고 문서
+* [제품 요구사항 정의서 (PRD)](@docs/PRD.md)
+* [사용자 시나리오](@docs/USER_SCENARIO.md)
+* [와이어프레임](@docs/Wireframe.md)

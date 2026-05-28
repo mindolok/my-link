@@ -1,0 +1,8 @@
+feat: 링크 목록 페이지 구현, 타입 에러 수정 및 전체 문서 한글화
+
+- shadcn/ui Card 컴포넌트를 활용하여 링크 목록 세로 나열 UI 구현 (`app/page.tsx`, `components/ui/card.tsx`)
+- lucide-react를 활용한 링크 아이콘 연동 및 더미 데이터 매핑 (`data/links.ts`)
+- IDE에서 발생하는 React 타입 (ReactNode, ElementType) 관련 에러 해결을 위해 명시적 `import type` 추가 (`app/layout.tsx`, `app/page.tsx`)
+- 미사용 `Geist` 폰트 임포트로 인한 ESLint 경고 수정
+- Prettier를 이용해 전체 소스 코드 포맷팅 일괄 적용 (`npm run format`)
+- 사용자의 요청에 따라 프로젝트 가이드라인(`GEMINI.md`), `README.md`, `AGENTS.md` 전체 문서를 한글로 번역 및 갱신
