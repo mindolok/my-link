@@ -1,5 +1,0 @@
-commit 123a1f130714a2f5c6cc45843f6e2f2762d3978f
-Author: 서지민 <jmin0624@naver.com>
-Date:   Mon Mar 23 17:58:47 2026 +0900
-
-    Profile page update and update GEMINI.md instructions
