@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Loader2, User, LayoutDashboard, LogOut, LogIn } from "lucide-react"
+import { Loader2, User, LayoutDashboard, LogOut, LogIn, BarChart3 } from "lucide-react"
 
 export default function Header() {
   const { user, loading: authLoading } = useAuth()
@@ -118,6 +118,12 @@ export default function Header() {
                     >
                       <User className="mr-2 h-4 w-4" />
                       <span>내 프로필 보기</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="p-0 cursor-pointer">
+                    <Link href="/stats" className="flex items-center w-full px-2 py-1.5 outline-none">
+                      <BarChart3 className="mr-2 h-4 w-4" />
+                      <span>통계</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
