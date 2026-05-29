@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ==========================================
+    // [공통 검증 함수]
+    // ==========================================
+    // 1. 현재 요청을 보낸 사용자가 문서의 소유자(userId)와 일치하는지 확인
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 2. 새로 저장되거나 업데이트되는 데이터 참조 헬퍼
+    function incomingData() {
+      return request.resource.data;
+    }
+
+    // ==========================================
+    // [유저 프로필 컬렉션]
+    // ==========================================
+    match /users/{userId} {
+      // [읽기] 방문자용 프로필 렌더링을 위해 누구나 조회 가능
+      allow get, list: if true;
+      
+      // [생성] 첫 마이페이지 진입 시 프로필 생성
+      // - 로그인한 본인만 가능
+      // - displayName과 createdAt 필드가 반드시 포함되어야 함
+      allow create: if isOwner(userId)
+                    && incomingData().keys().hasAll(['displayName', 'createdAt'])
+                    && incomingData().displayName is string;
+      
+      // [수정] 프로필 (이름, 소개글) 편집 시
+      // - 로그인한 본인만 가능
+      // - displayName이 업데이트되는 경우, 반드시 빈 문자열이 아닌 문자열이어야 함
+      allow update: if isOwner(userId)
+                    && (!incomingData().keys().hasAny(['displayName']) || 
+                       (incomingData().displayName is string && incomingData().displayName.size() > 0));
+                    
+      // [삭제] 회원 탈퇴 시
+      allow delete: if isOwner(userId);
+      
+      // ==========================================
+      // [유저별 링크 서브 컬렉션]
+      // ==========================================
+      match /links/{linkId} {
+        // [읽기] 방문자용 링크 목록 렌더링을 위해 누구나 조회 가능
+        allow get, list: if true;
+        
+        // [생성] 새 링크 추가 시
+        // - 본인만 가능
+        // - title, url, createdAt 필드 필수 검증
+        allow create: if isOwner(userId)
+                      && incomingData().keys().hasAll(['title', 'url', 'createdAt'])
+                      && incomingData().title is string
+                      && incomingData().url is string;
+        
+        // [수정] 링크 내용 변경 시
+        // - 본인만 수정 가능
+        // - title이나 url이 포함된 경우 문자열이어야 함
+        allow update: if isOwner(userId)
+                      && (!incomingData().keys().hasAny(['title']) || incomingData().title is string)
+                      && (!incomingData().keys().hasAny(['url']) || incomingData().url is string);
+        
+        // [삭제] 링크 삭제 시
+        allow delete: if isOwner(userId);
+      }
+    }
+    
+    // ==========================================
+    // [고유 닉네임(디스플레이 네임) 검증 컬렉션]
+    // ==========================================
+    // 문서 ID = 유저가 선택한 닉네임 (예: /usernames/서지민)
+    match /usernames/{username} {
+      // 닉네임 존재 여부는 누구나 확인 가능해야 함
+      allow get, list: if true;
+      
+      // [생성] 새 닉네임을 선점할 때
+      // - 로그인한 상태여야 하며, 해당 이름의 문서가 기존에 존재하지 않아야 함
+      // - 본인의 uid가 기록되어야 함
+      allow create: if request.auth != null
+                    && incomingData().uid == request.auth.uid;
+                    // (트랜잭션으로 생성하므로 문서가 없어야 성공)
+      
+      // [수정] uid를 남에게 넘기는 것을 방지하기 위해 수정 불가
+      allow update: if false;
+      
+      // [삭제] 닉네임을 다른 것으로 바꾸거나 회원 탈퇴 시
+      // - 기존 문서를 소유한 사람만 삭제 가능
+      allow delete: if request.auth != null
+                    && resource.data.uid == request.auth.uid;
+    }
+  }
+}

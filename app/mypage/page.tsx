@@ -2,8 +2,9 @@
 
 import React, { useState } from "react"
 import { LinkItem } from "@/data/links"
-import { collection, addDoc, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, getDocs, getDoc, where, setDoc } from "firebase/firestore"
+import { collection, addDoc, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, getDocs, getDoc, where, setDoc, runTransaction } from "firebase/firestore"
 import { db } from "@/lib/firebase"
+import { useAuth } from "@/hooks/useAuth"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -34,7 +35,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
-function LinkItemCard({ link }: { link: LinkItem }) {
+function LinkItemCard({ link, userId }: { link: LinkItem, userId: string }) {
   const queryClient = useQueryClient()
   const [isEditing, setIsEditing] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -52,14 +53,14 @@ function LinkItemCard({ link }: { link: LinkItem }) {
 
   const updateMutation = useMutation({
     mutationFn: async (data: FormValues) => {
-      await updateDoc(doc(db, "users", "anonymous", "links", link.id), {
+      await updateDoc(doc(db, "users", userId, "links", link.id), {
         title: data.title,
         url: data.url,
         updatedAt: serverTimestamp(),
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["links", "anonymous"] })
+      queryClient.invalidateQueries({ queryKey: ["links", userId] })
       setIsEditing(false)
     },
     onError: (error) => {
@@ -70,10 +71,10 @@ function LinkItemCard({ link }: { link: LinkItem }) {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      await deleteDoc(doc(db, "users", "anonymous", "links", link.id))
+      await deleteDoc(doc(db, "users", userId, "links", link.id))
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["links", "anonymous"] })
+      queryClient.invalidateQueries({ queryKey: ["links", userId] })
       setIsDeleteDialogOpen(false)
     },
     onError: (error) => {
@@ -283,37 +284,66 @@ function LinkItemCard({ link }: { link: LinkItem }) {
 
 export default function MyPage() {
   const queryClient = useQueryClient()
+  const { user, loading: authLoading } = useAuth()
+  
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [editProfileData, setEditProfileData] = useState({ displayName: "", bio: "" })
   const [open, setOpen] = useState(false)
   
   const { data: profile = { displayName: "서지민", bio: "Developer & Creator" }, isLoading: isProfileLoading } = useQuery({
-    queryKey: ["profile", "anonymous"],
+    queryKey: ["profile", user?.uid],
     queryFn: async () => {
-      const userDocRef = doc(db, "users", "anonymous")
+      if (!user) throw new Error("로그인이 필요합니다.")
+      
+      const userDocRef = doc(db, "users", user.uid)
       const docSnap = await getDoc(userDocRef)
       if (docSnap.exists()) {
         const data = docSnap.data()
         return {
-          displayName: data.displayName || "서지민",
+          displayName: data.displayName || user.displayName || "MyLink User",
           bio: data.bio !== undefined ? data.bio : "Developer & Creator"
         }
       } else {
-        await setDoc(userDocRef, {
-          displayName: "서지민",
-          bio: "Developer & Creator",
-          createdAt: serverTimestamp()
+        const baseName = user.displayName || "MyLink User"
+        let finalName = baseName
+        
+        await runTransaction(db, async (transaction) => {
+          let usernameRef = doc(db, "usernames", finalName)
+          let usernameDoc = await transaction.get(usernameRef)
+          
+          if (usernameDoc.exists() && usernameDoc.data().uid !== user.uid) {
+            finalName = `${baseName}-${Math.random().toString(36).substring(2, 6)}`
+            usernameRef = doc(db, "usernames", finalName)
+          }
+          
+          transaction.set(userDocRef, {
+            displayName: finalName,
+            bio: "Developer & Creator",
+            createdAt: serverTimestamp()
+          })
+          
+          transaction.set(usernameRef, {
+            uid: user.uid,
+            createdAt: serverTimestamp()
+          })
         })
-        return { displayName: "서지민", bio: "Developer & Creator" }
+
+        return {
+          displayName: finalName,
+          bio: "Developer & Creator"
+        }
       }
-    }
+    },
+    enabled: !!user
   })
 
   const { data: links = [], isLoading: isLinksLoading } = useQuery({
-    queryKey: ["links", "anonymous"],
+    queryKey: ["links", user?.uid],
     queryFn: async () => {
+      if (!user) return []
+      
       const q = query(
-        collection(db, "users", "anonymous", "links"),
+        collection(db, "users", user.uid, "links"),
         orderBy("createdAt", "desc")
       )
       const snapshot = await getDocs(q)
@@ -323,19 +353,21 @@ export default function MyPage() {
         url: doc.data().url,
         updatedAt: doc.data().updatedAt?.toDate() || null,
       })) as LinkItem[]
-    }
+    },
+    enabled: !!user
   })
 
   const addLinkMutation = useMutation({
     mutationFn: async (data: FormValues) => {
-      await addDoc(collection(db, "users", "anonymous", "links"), {
+      if (!user) throw new Error("로그인이 필요합니다.")
+      await addDoc(collection(db, "users", user.uid, "links"), {
         title: data.title,
         url: data.url,
         createdAt: serverTimestamp(),
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["links", "anonymous"] })
+      queryClient.invalidateQueries({ queryKey: ["links", user?.uid] })
       form.reset()
       setOpen(false)
     },
@@ -347,44 +379,55 @@ export default function MyPage() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (newData: { displayName: string, bio: string }) => {
-      if (newData.displayName !== profile.displayName) {
-        const q = query(
-          collection(db, "users"),
-          where("displayName", "==", newData.displayName)
-        )
-        const querySnapshot = await getDocs(q)
-        
-        const isDuplicate = querySnapshot.docs.some(docSnap => docSnap.id !== "anonymous")
-        if (isDuplicate) {
-          throw new Error("이미 사용 중인 이름입니다.")
+      if (!user) throw new Error("로그인이 필요합니다.")
+      
+      await runTransaction(db, async (transaction) => {
+        if (newData.displayName !== profile.displayName) {
+          const newUsernameRef = doc(db, "usernames", newData.displayName)
+          const newUsernameDoc = await transaction.get(newUsernameRef)
+          
+          if (newUsernameDoc.exists() && newUsernameDoc.data().uid !== user.uid) {
+            throw new Error("이미 사용 중인 이름입니다.")
+          }
+          
+          if (profile.displayName) {
+            const oldUsernameRef = doc(db, "usernames", profile.displayName)
+            transaction.delete(oldUsernameRef)
+          }
+          
+          transaction.set(newUsernameRef, {
+            uid: user.uid,
+            createdAt: serverTimestamp()
+          })
         }
-      }
 
-      await updateDoc(doc(db, "users", "anonymous"), {
-        displayName: newData.displayName,
-        bio: newData.bio,
-        updatedAt: serverTimestamp(),
+        const userRef = doc(db, "users", user.uid)
+        transaction.update(userRef, {
+          displayName: newData.displayName,
+          bio: newData.bio,
+          updatedAt: serverTimestamp(),
+        })
       })
     },
     onMutate: async (newData) => {
-      await queryClient.cancelQueries({ queryKey: ["profile", "anonymous"] })
+      await queryClient.cancelQueries({ queryKey: ["profile", user?.uid] })
       
-      const previousProfile = queryClient.getQueryData(["profile", "anonymous"])
+      const previousProfile = queryClient.getQueryData(["profile", user?.uid])
       
-      queryClient.setQueryData(["profile", "anonymous"], newData)
+      queryClient.setQueryData(["profile", user?.uid], newData)
       setIsEditingProfile(false) // 즉각적인 UI 반영
       
       return { previousProfile }
     },
     onError: (error: any, newData, context) => {
       if (context?.previousProfile) {
-        queryClient.setQueryData(["profile", "anonymous"], context.previousProfile)
+        queryClient.setQueryData(["profile", user?.uid], context.previousProfile)
       }
       console.error("프로필 수정 중 오류 발생:", error)
       alert(error.message || "프로필을 수정하는 중 오류가 발생했습니다.")
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["profile", "anonymous"] })
+      queryClient.invalidateQueries({ queryKey: ["profile", user?.uid] })
     }
   })
   
@@ -429,7 +472,30 @@ export default function MyPage() {
 
   const isSubmittingLink = addLinkMutation.isPending
   const isSavingProfile = updateProfileMutation.isPending
-  const loading = isProfileLoading || isLinksLoading
+  const loading = isProfileLoading || isLinksLoading || authLoading
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-svh items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="flex min-h-[calc(100svh-3.5rem)] flex-col items-center justify-center p-6 text-center">
+        <h2 className="text-2xl font-bold tracking-tight mb-2">로그인이 필요한 페이지입니다</h2>
+        <p className="text-muted-foreground mb-6">마이페이지를 이용하려면 먼저 로그인해 주세요.</p>
+        <Link 
+          href="/" 
+          className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+        >
+          홈으로 가기
+        </Link>
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-svh flex-col items-center bg-slate-50 p-6 text-foreground dark:bg-zinc-950 md:p-12 lg:p-24 selection:bg-primary/20">
@@ -579,7 +645,7 @@ export default function MyPage() {
           ) : (
             <>
               {links.map((link) => (
-                <LinkItemCard key={link.id} link={link} />
+                <LinkItemCard key={link.id} link={link} userId={user.uid} />
               ))}
               {links.length === 0 && (
                 <div className="py-12 text-center text-muted-foreground">

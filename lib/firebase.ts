@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 // import { getAnalytics } from "firebase/analytics";
 
@@ -19,8 +19,9 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 // Initialize Auth and Firestore
 const auth = getAuth(app);
 const db = getFirestore(app);
+const googleProvider = new GoogleAuthProvider();
 
 // Analytics는 클라이언트 환경에서만 초기화 가능 (window 객체 필요)
 // const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 
-export { app, auth, db };
+export { app, auth, db, googleProvider };
