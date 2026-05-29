@@ -54,6 +54,7 @@ function LinkItemCard({ link }: { link: LinkItem }) {
       await updateDoc(doc(db, "users", "anonymous", "links", link.id), {
         title: data.title,
         url: data.url,
+        updatedAt: serverTimestamp(),
       })
       setIsEditing(false)
     } catch (error) {
@@ -144,6 +145,17 @@ function LinkItemCard({ link }: { link: LinkItem }) {
     )
   }
 
+  const formatDate = (date: any) => {
+    if (!date) return "";
+    return new Intl.DateTimeFormat('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date)
+  }
+
   let hostname = "example.com"
   try {
     hostname = new URL(link.url).hostname
@@ -172,9 +184,16 @@ function LinkItemCard({ link }: { link: LinkItem }) {
                   loading="lazy"
                 />
               </div>
-              <span className="text-base font-semibold tracking-tight transition-colors group-hover:text-primary sm:text-lg pl-14">
-                {link.title}
-              </span>
+              <div className="flex flex-col pl-14">
+                <span className="text-base font-semibold tracking-tight transition-colors group-hover:text-primary sm:text-lg">
+                  {link.title}
+                </span>
+                {link.updatedAt && (
+                  <span className="text-xs text-muted-foreground mt-0.5">
+                    최근 수정: {formatDate(link.updatedAt)}
+                  </span>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -267,6 +286,7 @@ export default function MyPage() {
         id: doc.id,
         title: doc.data().title,
         url: doc.data().url,
+        updatedAt: doc.data().updatedAt?.toDate() || null,
       })) as LinkItem[]
       
       setLinks(fetchedLinks)
