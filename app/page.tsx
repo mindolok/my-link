@@ -4,13 +4,15 @@ import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/useAuth"
 import { signInWithPopup } from "firebase/auth"
 import { auth, googleProvider } from "@/lib/firebase"
-import { Loader2, ArrowRight, GitBranch, Code2, Globe } from "lucide-react"
+import { Loader2, Fingerprint, Sparkles } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
+import { cn } from "@/lib/utils"
 
 export default function Page() {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const [isHovered, setIsHovered] = useState(false)
 
   useEffect(() => {
     if (user && !loading) {
@@ -28,72 +30,73 @@ export default function Page() {
 
   if (loading) {
     return (
-      <div className="flex min-h-svh items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex min-h-svh items-center justify-center bg-[#09090b]">
+        <Loader2 className="h-8 w-8 animate-spin text-zinc-500" />
       </div>
     )
   }
 
   return (
-    <div className="relative flex min-h-[calc(100svh-3.5rem)] flex-col items-center justify-center overflow-hidden bg-background px-4 py-16 sm:px-6 lg:px-8">
-      {/* 미니멀한 배경 빛 (중앙 집중) */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[800px] w-[800px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-[120px]"
-      />
-
-      {/* ── 메인 텍스트 영역 ── */}
-      <div className="z-10 mt-10 flex w-full max-w-3xl flex-col items-center text-center">
-        <h1 className="text-5xl font-extrabold tracking-tight text-foreground sm:text-6xl lg:text-7xl">
-          나를 표현하는 <br className="hidden sm:block" />
-          <span className="text-primary">단 하나의 공간</span>
-        </h1>
-        
-        <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-muted-foreground sm:text-xl">
-          불필요한 기능이나 상업적인 로고는 덜어냈습니다.<br />
-          오롯이 당신에게만 집중된 심플한 프로필을 완성하세요.
-        </p>
-        
-        <div className="mt-10 flex items-center justify-center gap-x-6">
-          <Button
-            size="lg"
-            className="h-14 rounded-full px-8 text-base font-semibold shadow-md transition-all hover:scale-105 active:scale-95"
-            onClick={handleLogin}
-          >
-            Google로 3초만에 시작하기
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </div>
+    <div className="relative flex min-h-[calc(100svh-3.5rem)] flex-col items-center justify-center overflow-hidden bg-[#09090b] px-4 py-16 selection:bg-white/20">
+      
+      {/* 감각적인 배경 애니메이션 효과 */}
+      <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center overflow-hidden">
+        {/* 그라디언트 오브젝트 1 */}
+        <div 
+          className={cn(
+            "absolute h-[600px] w-[600px] rounded-full bg-gradient-to-tr from-violet-500/10 via-fuchsia-500/10 to-transparent blur-[120px] transition-transform duration-1000 ease-in-out",
+            isHovered ? "scale-110" : "scale-100"
+          )}
+        />
+        {/* 그라디언트 오브젝트 2 */}
+        <div 
+          className={cn(
+            "absolute h-[500px] w-[500px] rounded-full bg-gradient-to-bl from-blue-500/10 to-cyan-500/10 blur-[100px] transition-all duration-1000 ease-in-out",
+            isHovered ? "-translate-y-8 scale-105" : "translate-y-0 scale-100"
+          )}
+        />
       </div>
 
-      {/* ── 미니멀한 프로필 목업 (분위기 연출용) ── */}
-      <div className="z-10 mt-20 w-full max-w-sm pb-10 sm:max-w-md">
-        <div className="relative overflow-hidden rounded-[2.5rem] border border-border/50 bg-background/60 p-8 shadow-2xl backdrop-blur-xl transition-transform duration-500 hover:-translate-y-2">
-          {/* 아바타 */}
-          <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-primary/80 to-primary/40 text-3xl font-bold text-primary-foreground shadow-lg">
-            나
-          </div>
-          
-          <div className="mt-6 text-center">
-            <div className="text-2xl font-bold text-foreground">내 이름</div>
-            <div className="mt-1.5 text-sm font-medium text-muted-foreground">나를 설명하는 한 줄</div>
-          </div>
+      {/* 미세한 노이즈 텍스처 (CSS SVG 기반) */}
+      <div 
+        className="pointer-events-none absolute inset-0 z-0 opacity-[0.15]" 
+        style={{ backgroundImage: "url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.8%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E')" }}
+      />
 
-          <div className="mt-8 flex flex-col gap-3.5">
-            {[ 
-              { icon: <GitBranch className="h-5 w-5" />, label: "GitHub 프로필" },
-              { icon: <Globe className="h-5 w-5" />, label: "개인 블로그" },
-              { icon: <Code2 className="h-5 w-5" />, label: "포트폴리오" },
-            ].map((item, i) => (
-              <div 
-                key={i}
-                className="flex items-center gap-4 rounded-2xl border border-border/40 bg-background/80 px-5 py-4 transition-colors hover:bg-muted/80"
-              >
-                <div className="text-muted-foreground">{item.icon}</div>
-                <div className="text-sm font-medium text-foreground">{item.label}</div>
-              </div>
-            ))}
-          </div>
+      {/* 메인 콘텐츠 */}
+      <div 
+        className="z-10 flex flex-col items-center text-center"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-zinc-300 backdrop-blur-md">
+          <Sparkles className="h-3.5 w-3.5" />
+          Personal Digital Space
+        </div>
+
+        <h1 className="bg-gradient-to-b from-white to-zinc-400 bg-clip-text pb-6 text-6xl font-extrabold tracking-tighter text-transparent sm:text-7xl lg:text-8xl">
+          Everything <br />
+          About Me.
+        </h1>
+        
+        <p className="mx-auto mt-2 max-w-lg text-lg font-light leading-relaxed text-zinc-400 sm:text-xl">
+          저의 작업물, 생각, 그리고 다양한 흔적들을<br className="hidden sm:block" />
+          이곳, 단 하나의 공간에 담았습니다.
+        </p>
+
+        {/* 심플하고 감각적인 관리자 로그인 버튼 */}
+        <div className="mt-14">
+          <Button
+            variant="outline"
+            size="lg"
+            className="group relative h-14 overflow-hidden rounded-full border-white/10 bg-white/5 px-8 text-sm font-medium uppercase tracking-widest text-white backdrop-blur-xl transition-all duration-300 hover:border-white/20 hover:bg-white/10 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] active:scale-95"
+            onClick={handleLogin}
+          >
+            <span className="relative z-10 flex items-center gap-2">
+              <Fingerprint className="h-4 w-4 transition-transform group-hover:scale-110" />
+              Manage Profile
+            </span>
+          </Button>
         </div>
       </div>
     </div>
