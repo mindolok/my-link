@@ -2,7 +2,7 @@
 
 import React, { useState } from "react"
 import { LinkItem } from "@/data/links"
-import { collection, addDoc, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, getDocs, getDoc, where, setDoc, runTransaction } from "firebase/firestore"
+import { collection, addDoc, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, getDocs, getDoc, where, setDoc, runTransaction, increment } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useAuth } from "@/hooks/useAuth"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
@@ -20,7 +20,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import Link from "next/link"
-import { Plus, Share2, Loader2, Pencil, Trash2 } from "lucide-react"
+import { Plus, Share2, Loader2, Pencil, Trash2, MousePointerClick } from "lucide-react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -39,6 +39,20 @@ function LinkItemCard({ link, userId }: { link: LinkItem, userId: string }) {
   const queryClient = useQueryClient()
   const [isEditing, setIsEditing] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+
+  const incrementClickMutation = useMutation({
+    mutationFn: async () => {
+      await updateDoc(doc(db, "users", userId, "links", link.id), {
+        clicks: increment(1)
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["links", userId] })
+    },
+    onError: (error) => {
+      console.error("클릭 수 업데이트 실패:", error)
+    }
+  })
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -188,6 +202,9 @@ function LinkItemCard({ link, userId }: { link: LinkItem, userId: string }) {
         target="_blank"
         rel="noopener noreferrer"
         className="block w-full outline-none"
+        onClick={() => {
+          incrementClickMutation.mutate();
+        }}
       >
         <Card className="cursor-pointer border border-border/40 bg-background/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 pr-20">
           <CardContent className="flex w-full items-center p-4 sm:p-5">
@@ -201,9 +218,13 @@ function LinkItemCard({ link, userId }: { link: LinkItem, userId: string }) {
                   loading="lazy"
                 />
               </div>
-              <div className="flex w-full items-center justify-center px-14">
-                <span className="text-base font-semibold tracking-tight transition-colors group-hover:text-primary sm:text-lg text-center truncate">
+              <div className="flex w-full items-center justify-center px-14 flex-col">
+                <span className="text-base font-semibold tracking-tight transition-colors group-hover:text-primary sm:text-lg text-center truncate max-w-full">
                   {link.title}
+                </span>
+                <span className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                  <MousePointerClick className="h-3 w-3" />
+                  <span>{link.clicks || 0}</span>
                 </span>
               </div>
             </div>
@@ -352,6 +373,7 @@ export default function MyPage() {
         title: doc.data().title,
         url: doc.data().url,
         updatedAt: doc.data().updatedAt?.toDate() || null,
+        clicks: doc.data().clicks || 0,
       })) as LinkItem[]
     },
     enabled: !!user
@@ -364,6 +386,7 @@ export default function MyPage() {
         title: data.title,
         url: data.url,
         createdAt: serverTimestamp(),
+        clicks: 0,
       })
     },
     onSuccess: () => {
@@ -503,19 +526,9 @@ export default function MyPage() {
         
         {/* Profile Header */}
         <div className="relative mt-8 flex flex-col items-center gap-5 text-center">
-          <div className="absolute right-0 top-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <Share2 className="h-5 w-5" />
-              <span className="sr-only">공유하기</span>
-            </Button>
-          </div>
 
           <Avatar className="h-24 w-24 border-2 border-background shadow-sm ring-2 ring-primary/10 transition-transform duration-300 hover:scale-105">
-            <AvatarImage src="https://github.com/shadcn.png" alt="Profile image" />
+            <AvatarImage src="https://github.com/mindolok.png" alt="Profile image" />
             <AvatarFallback>ML</AvatarFallback>
           </Avatar>
           

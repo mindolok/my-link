@@ -4,6 +4,7 @@ export type LinkItem = {
   url: string
   icon?: string
   updatedAt?: Date
+  clicks?: number
 }
 
 export const dummyLinks: LinkItem[] = [

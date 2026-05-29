@@ -87,7 +87,7 @@ export default function Header() {
               <DropdownMenu>
                 <DropdownMenuTrigger className="relative h-8 w-8 rounded-full focus-visible:ring-2 focus-visible:ring-primary outline-none">
                   <Avatar className="h-8 w-8 hover:opacity-80 transition-opacity">
-                    <AvatarImage src={user.photoURL || "https://github.com/shadcn.png"} alt="Profile" />
+                    <AvatarImage src={user.photoURL || "https://github.com/mindolok.png"} alt="Profile" />
                     <AvatarFallback>{profile?.displayName?.substring(0, 2).toUpperCase() || user.displayName?.substring(0, 2).toUpperCase() || "ML"}</AvatarFallback>
                   </Avatar>
                 </DropdownMenuTrigger>

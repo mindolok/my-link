@@ -1,88 +1,53 @@
-import { Card, CardContent } from "@/components/ui/card"
+"use client"
+
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { dummyLinks } from "@/data/links"
-import { Share2 } from "lucide-react"
-import Link from "next/link"
+import { useAuth } from "@/hooks/useAuth"
+import { signInWithPopup } from "firebase/auth"
+import { auth, googleProvider } from "@/lib/firebase"
+import { Loader2 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 
 export default function Page() {
+  const { user, loading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (user && !loading) {
+      router.push("/mypage")
+    }
+  }, [user, loading, router])
+
+  const handleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider)
+    } catch (error) {
+      console.error("로그인 에러:", error)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-svh items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
   return (
-    <div className="flex min-h-svh flex-col items-center bg-slate-50 p-6 text-foreground dark:bg-zinc-950 md:p-12 lg:p-24 selection:bg-primary/20">
-      <div className="flex w-full max-w-md flex-col gap-8">
-        {/* Profile Header */}
-        <div className="relative mt-8 flex flex-col items-center gap-5 text-center">
-          {/* Share Button */}
-          <div className="absolute right-0 top-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <Share2 className="h-5 w-5" />
-              <span className="sr-only">공유하기</span>
-            </Button>
-          </div>
-
-          <Avatar className="h-24 w-24 border-2 border-background shadow-sm ring-2 ring-primary/10 transition-transform duration-300 hover:scale-105">
-            {/* 임시 프로필 이미지 */}
-            <AvatarImage src="https://github.com/shadcn.png" alt="Profile image" />
-            <AvatarFallback>ML</AvatarFallback>
-          </Avatar>
-          
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              서지민
-            </h1>
-            <p className="text-sm font-medium text-muted-foreground sm:text-base">
-              Developer & Creator
-            </p>
-          </div>
-        </div>
-
-        {/* Links List */}
-        <div className="mt-2 flex w-full flex-col gap-4">
-          {dummyLinks.map((link) => {
-            let hostname = "example.com"
-            try {
-              hostname = new URL(link.url).hostname
-            } catch {
-              // URL 파싱 실패 시 무시
-            }
-
-            // 구글 파비콘 V2 API (더 안정적이고 차단 확률이 적음)
-            const faviconUrl = `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${hostname}&size=64`
-
-            return (
-              <Link
-                key={link.id}
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group block w-full outline-none"
-              >
-                <Card
-                  className="cursor-pointer border border-border/40 bg-background/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                >
-                  <CardContent className="flex w-full items-center p-4 sm:p-5">
-                    <div className="relative flex w-full items-center justify-center">
-                      <div className="absolute left-0 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary/50 transition-colors group-hover:bg-primary/10">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img 
-                          src={faviconUrl} 
-                          alt={`${link.title} icon`} 
-                          className="h-6 w-6 object-contain"
-                          loading="lazy"
-                        />
-                      </div>
-                      <span className="text-base font-semibold tracking-tight transition-colors group-hover:text-primary sm:text-lg">
-                        {link.title}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            )
-          })}
+    <div className="flex min-h-[calc(100svh-3.5rem)] flex-col items-center justify-center bg-slate-50 p-6 text-foreground dark:bg-zinc-950 md:p-12 selection:bg-primary/20">
+      <div className="max-w-xl text-center space-y-8">
+        <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-primary">
+          나만의 멀티 링크 프로필
+        </h1>
+        <p className="text-lg md:text-xl text-muted-foreground">
+          여러 개의 링크를 하나의 페이지로 모아서 공유하세요.
+          간편하게 나만의 링크 트리를 만들 수 있습니다.
+        </p>
+        <div className="flex justify-center gap-4 pt-4">
+          <Button size="lg" className="text-base h-12 px-8 bg-[#5B5FC7] hover:bg-[#5B5FC7]/90 text-white" onClick={handleLogin}>
+            무료로 시작하기
+          </Button>
         </div>
       </div>
     </div>

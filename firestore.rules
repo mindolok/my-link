@@ -55,11 +55,12 @@ service cloud.firestore {
                       && incomingData().url is string;
         
         // [수정] 링크 내용 변경 시
-        // - 본인만 수정 가능
-        // - title이나 url이 포함된 경우 문자열이어야 함
-        allow update: if isOwner(userId)
+        // - 본인은 모든 필드 수정 가능
+        // - 타인은 clicks 필드만 수정 가능 (조회수 증가용)
+        allow update: if (isOwner(userId)
                       && (!incomingData().keys().hasAny(['title']) || incomingData().title is string)
-                      && (!incomingData().keys().hasAny(['url']) || incomingData().url is string);
+                      && (!incomingData().keys().hasAny(['url']) || incomingData().url is string))
+                      || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['clicks']);
         
         // [삭제] 링크 삭제 시
         allow delete: if isOwner(userId);

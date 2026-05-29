@@ -1,8 +1,8 @@
 "use client"
 
 import { useParams, notFound } from "next/navigation"
-import { useQuery } from "@tanstack/react-query"
-import { collection, query, where, getDocs, orderBy, limit } from "firebase/firestore"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { collection, query, where, getDocs, orderBy, limit, updateDoc, doc, increment, getDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,6 +13,7 @@ import { LinkItem } from "@/data/links"
 import { useEffect } from "react"
 
 export default function ProfilePage() {
+  const queryClient = useQueryClient()
   const params = useParams()
   const displayName = params?.displayName as string | undefined
   const decodedName = displayName ? decodeURIComponent(displayName) : ""
@@ -22,24 +23,53 @@ export default function ProfilePage() {
     queryFn: async () => {
       if (!decodedName) return null
       
-      const q = query(
-        collection(db, "users"),
-        where("displayName", "==", decodedName),
-        limit(1)
-      )
-      const snapshot = await getDocs(q)
+      let targetUid = null
       
-      if (snapshot.empty) {
-        return null // Not found
+      const usernameDocRef = doc(db, "usernames", decodedName)
+      const usernameDocSnap = await getDoc(usernameDocRef)
+      
+      if (usernameDocSnap.exists()) {
+        targetUid = usernameDocSnap.data().uid
+      } else {
+        const q = query(
+          collection(db, "users"),
+          where("displayName", "==", decodedName),
+          limit(1)
+        )
+        const snapshot = await getDocs(q)
+        if (!snapshot.empty) {
+          targetUid = snapshot.docs[0].id
+        }
       }
       
-      const doc = snapshot.docs[0]
+      if (!targetUid) return null
+      
+      const userDocRef = doc(db, "users", targetUid)
+      const userDocSnapshot = await getDoc(userDocRef)
+      
+      if (!userDocSnapshot.exists()) return null
+      
       return {
-        id: doc.id,
-        ...doc.data()
+        id: userDocSnapshot.id,
+        ...userDocSnapshot.data()
       } as { id: string, displayName: string, bio?: string }
     },
     enabled: !!decodedName
+  })
+
+  const incrementClickMutation = useMutation({
+    mutationFn: async (linkId: string) => {
+      if (!userDoc?.id) return
+      await updateDoc(doc(db, "users", userDoc.id, "links", linkId), {
+        clicks: increment(1)
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["links", userDoc?.id] })
+    },
+    onError: (error) => {
+      console.error("클릭 수 업데이트 실패:", error)
+    }
   })
 
   // 만약 로딩이 끝났는데 유저가 없으면 notFound 호출
@@ -63,6 +93,7 @@ export default function ProfilePage() {
         title: doc.data().title,
         url: doc.data().url,
         updatedAt: doc.data().updatedAt?.toDate() || null,
+        clicks: doc.data().clicks || 0,
       })) as LinkItem[]
     },
     enabled: !!userDoc?.id
@@ -84,19 +115,8 @@ export default function ProfilePage() {
         
         {/* Profile Header */}
         <div className="relative mt-8 flex flex-col items-center gap-5 text-center">
-          <div className="absolute right-0 top-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <Share2 className="h-5 w-5" />
-              <span className="sr-only">공유하기</span>
-            </Button>
-          </div>
-
           <Avatar className="h-24 w-24 border-2 border-background shadow-sm ring-2 ring-primary/10 transition-transform duration-300 hover:scale-105">
-            <AvatarImage src="https://github.com/shadcn.png" alt="Profile image" />
+            <AvatarImage src="https://github.com/mindolok.png" alt="Profile image" />
             <AvatarFallback>{userDoc.displayName.substring(0, 2).toUpperCase()}</AvatarFallback>
           </Avatar>
           
@@ -134,6 +154,9 @@ export default function ProfilePage() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="group block w-full outline-none"
+                    onClick={() => {
+                      incrementClickMutation.mutate(link.id);
+                    }}
                   >
                     <Card className="cursor-pointer border border-border/40 bg-background/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
                       <CardContent className="flex w-full items-center p-4 sm:p-5">
@@ -147,8 +170,8 @@ export default function ProfilePage() {
                               loading="lazy"
                             />
                           </div>
-                          <div className="flex w-full items-center justify-center px-14">
-                            <span className="text-base font-semibold tracking-tight transition-colors group-hover:text-primary sm:text-lg text-center truncate">
+                          <div className="flex w-full items-center justify-center px-14 flex-col">
+                            <span className="text-base font-semibold tracking-tight transition-colors group-hover:text-primary sm:text-lg text-center truncate max-w-full">
                               {link.title}
                             </span>
                           </div>
