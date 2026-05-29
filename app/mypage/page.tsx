@@ -296,7 +296,7 @@ export default function MyPage() {
         const data = docSnap.data()
         return {
           displayName: data.displayName || "서지민",
-          bio: data.bio || "Developer & Creator"
+          bio: data.bio !== undefined ? data.bio : "Developer & Creator"
         }
       } else {
         await setDoc(userDocRef, {
@@ -411,8 +411,8 @@ export default function MyPage() {
   }
 
   const handleSaveProfile = () => {
-    const newName = editProfileData.displayName.trim()
-    const newBio = editProfileData.bio.trim()
+    const newName = (editProfileData.displayName || "").trim()
+    const newBio = (editProfileData.bio || "").trim()
     
     if (!newName) {
       alert("이름을 입력해주세요.")
