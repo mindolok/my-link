@@ -1,7 +1,9 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { dummyLinks, LinkItem } from "@/data/links"
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "firebase/firestore"
+import { db } from "@/lib/firebase"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -30,8 +32,27 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>
 
 export default function MyPage() {
-  const [links, setLinks] = useState<LinkItem[]>(dummyLinks)
+  const [links, setLinks] = useState<LinkItem[]>([])
   const [open, setOpen] = useState(false)
+  
+  useEffect(() => {
+    const q = query(
+      collection(db, "users", "anonymous", "links"),
+      orderBy("createdAt", "desc")
+    )
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedLinks = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        title: doc.data().title,
+        url: doc.data().url,
+      })) as LinkItem[]
+      
+      setLinks([...fetchedLinks, ...dummyLinks])
+    })
+
+    return () => unsubscribe()
+  }, [])
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -44,16 +65,19 @@ export default function MyPage() {
 
   const { register, handleSubmit, formState: { errors }, reset } = form
 
-  const onSubmit = (data: FormValues) => {
-    const newLink: LinkItem = {
-      id: Date.now().toString(),
-      title: data.title,
-      url: data.url,
+  const onSubmit = async (data: FormValues) => {
+    try {
+      await addDoc(collection(db, "users", "anonymous", "links"), {
+        title: data.title,
+        url: data.url,
+        createdAt: serverTimestamp(),
+      })
+      reset()
+      setOpen(false)
+    } catch (error) {
+      console.error("링크 추가 중 오류 발생:", error)
+      alert("링크를 추가하는 중 오류가 발생했습니다.")
     }
-
-    setLinks([newLink, ...links])
-    reset()
-    setOpen(false)
   }
 
   const handleOpenChange = (isOpen: boolean) => {
