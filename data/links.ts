@@ -3,7 +3,7 @@ export type LinkItem = {
   title: string
   url: string
   icon?: string
-  updatedAt?: any
+  updatedAt?: Date
 }
 
 export const dummyLinks: LinkItem[] = [

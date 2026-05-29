@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import { LinkItem } from "@/data/links"
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc } from "firebase/firestore"
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, getDocs, where, setDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -18,7 +18,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import Link from "next/link"
-import { Plus, Share2, Loader2, Pencil, Trash2, Check, X } from "lucide-react"
+import { Plus, Share2, Loader2, Pencil, Trash2 } from "lucide-react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -81,11 +81,7 @@ function LinkItemCard({ link }: { link: LinkItem }) {
     setIsEditing(false)
   }
 
-  const handleBlur = (e: React.FocusEvent<HTMLFormElement>) => {
-    if (!e.currentTarget.contains(e.relatedTarget)) {
-      handleSubmit(handleUpdate)()
-    }
-  }
+
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
     if (e.key === "Enter") {
@@ -145,7 +141,7 @@ function LinkItemCard({ link }: { link: LinkItem }) {
     )
   }
 
-  const formatDate = (date: any) => {
+  const formatDate = (date: Date | null) => {
     if (!date) return "";
     return new Intl.DateTimeFormat('ko-KR', {
       year: 'numeric',
@@ -272,16 +268,39 @@ function LinkItemCard({ link }: { link: LinkItem }) {
 
 export default function MyPage() {
   const [links, setLinks] = useState<LinkItem[]>([])
+  const [profile, setProfile] = useState({ displayName: "서지민", bio: "Developer & Creator" })
+  const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const [editProfileData, setEditProfileData] = useState({ displayName: "", bio: "" })
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   
   useEffect(() => {
+    // 프로필 정보 가져오기
+    const userDocRef = doc(db, "users", "anonymous")
+    const unsubscribeProfile = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data()
+        setProfile({
+          displayName: data.displayName || "서지민",
+          bio: data.bio || "Developer & Creator"
+        })
+      } else {
+        // 기본 문서가 없으면 생성
+        setDoc(userDocRef, {
+          displayName: "서지민",
+          bio: "Developer & Creator",
+          createdAt: serverTimestamp()
+        })
+      }
+    })
+
     const q = query(
       collection(db, "users", "anonymous", "links"),
       orderBy("createdAt", "desc")
     )
     
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribeLinks = onSnapshot(q, (snapshot) => {
       const fetchedLinks = snapshot.docs.map((doc) => ({
         id: doc.id,
         title: doc.data().title,
@@ -293,7 +312,10 @@ export default function MyPage() {
       setLoading(false)
     })
 
-    return () => unsubscribe()
+    return () => {
+      unsubscribeProfile()
+      unsubscribeLinks()
+    }
   }, [])
   
   const form = useForm<FormValues>({
@@ -329,6 +351,55 @@ export default function MyPage() {
     }
   }
 
+  const handleSaveProfile = async () => {
+    const newName = editProfileData.displayName.trim()
+    const newBio = editProfileData.bio.trim()
+    
+    if (!newName) {
+      alert("이름을 입력해주세요.")
+      return
+    }
+
+    if (newName === profile.displayName && newBio === profile.bio) {
+      setIsEditingProfile(false)
+      return
+    }
+
+    setIsSavingProfile(true)
+    try {
+      if (newName !== profile.displayName) {
+        // 이름이 변경된 경우에만 중복 체크
+        const q = query(
+          collection(db, "users"),
+          where("displayName", "==", newName)
+        )
+        const querySnapshot = await getDocs(q)
+        
+        // 본인이 아닌 다른 문서 중에 해당 이름을 사용하는 문서가 있는지 확인
+        const isDuplicate = querySnapshot.docs.some(docSnap => docSnap.id !== "anonymous")
+        
+        if (isDuplicate) {
+          alert("이미 사용 중인 이름입니다.")
+          setIsSavingProfile(false)
+          return
+        }
+      }
+
+      await updateDoc(doc(db, "users", "anonymous"), {
+        displayName: newName,
+        bio: newBio,
+        updatedAt: serverTimestamp(),
+      })
+      
+      setIsEditingProfile(false)
+    } catch (error) {
+      console.error("프로필 수정 중 오류 발생:", error)
+      alert("프로필을 수정하는 중 오류가 발생했습니다.")
+    } finally {
+      setIsSavingProfile(false)
+    }
+  }
+
   return (
     <div className="flex min-h-svh flex-col items-center bg-slate-50 p-6 text-foreground dark:bg-zinc-950 md:p-12 lg:p-24 selection:bg-primary/20">
       <div className="flex w-full max-w-md flex-col gap-8">
@@ -351,13 +422,54 @@ export default function MyPage() {
             <AvatarFallback>ML</AvatarFallback>
           </Avatar>
           
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              서지민
-            </h1>
-            <p className="text-sm font-medium text-muted-foreground sm:text-base">
-              Developer & Creator
-            </p>
+          <div className="w-full space-y-2">
+            {isEditingProfile ? (
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1">
+                  <Input 
+                    value={editProfileData.displayName}
+                    onChange={(e) => setEditProfileData({ ...editProfileData, displayName: e.target.value })}
+                    placeholder="이름 입력"
+                    className="text-center text-lg font-bold"
+                    autoFocus
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Input 
+                    value={editProfileData.bio}
+                    onChange={(e) => setEditProfileData({ ...editProfileData, bio: e.target.value })}
+                    placeholder="소개글 입력"
+                    className="text-center"
+                  />
+                </div>
+                <div className="flex justify-center gap-2 mt-2">
+                  <Button variant="outline" size="sm" onClick={() => setIsEditingProfile(false)} disabled={isSavingProfile}>
+                    취소
+                  </Button>
+                  <Button size="sm" onClick={handleSaveProfile} disabled={isSavingProfile} className="bg-[#5B5FC7] text-white hover:bg-[#5B5FC7]/90">
+                    {isSavingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : "저장"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div 
+                className="group relative inline-flex flex-col items-center cursor-pointer p-2 rounded-lg hover:bg-secondary/50 transition-colors"
+                onClick={() => {
+                  setEditProfileData(profile)
+                  setIsEditingProfile(true)
+                }}
+              >
+                <div className="absolute right-0 top-0 -mr-6 -mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Pencil className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                  {profile.displayName}
+                </h1>
+                <p className="text-sm font-medium text-muted-foreground sm:text-base mt-1">
+                  {profile.bio}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
