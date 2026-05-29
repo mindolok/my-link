@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { dummyLinks, LinkItem } from "@/data/links"
+import { LinkItem } from "@/data/links"
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { Card, CardContent } from "@/components/ui/card"
@@ -17,7 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import Link from "next/link"
-import { Plus, Share2 } from "lucide-react"
+import { Plus, Share2, Loader2 } from "lucide-react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -34,6 +34,7 @@ type FormValues = z.infer<typeof formSchema>
 export default function MyPage() {
   const [links, setLinks] = useState<LinkItem[]>([])
   const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
   
   useEffect(() => {
     const q = query(
@@ -48,7 +49,8 @@ export default function MyPage() {
         url: doc.data().url,
       })) as LinkItem[]
       
-      setLinks([...fetchedLinks, ...dummyLinks])
+      setLinks(fetchedLinks)
+      setLoading(false)
     })
 
     return () => unsubscribe()
@@ -63,7 +65,7 @@ export default function MyPage() {
     },
   })
 
-  const { register, handleSubmit, formState: { errors }, reset } = form
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = form
 
   const onSubmit = async (data: FormValues) => {
     try {
@@ -157,9 +159,17 @@ export default function MyPage() {
                 </div>
                 <Button 
                   type="submit"
+                  disabled={isSubmitting}
                   className="mt-4 bg-[#5B5FC7] text-white hover:bg-[#5B5FC7]/90"
                 >
-                  추가하기
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      추가 중...
+                    </>
+                  ) : (
+                    "추가하기"
+                  )}
                 </Button>
               </form>
             </DialogContent>
@@ -168,48 +178,56 @@ export default function MyPage() {
 
         {/* 하단: 링크 목록 */}
         <div className="flex flex-col gap-4">
-          {links.map((link) => {
-            let hostname = "example.com"
-            try {
-              hostname = new URL(link.url).hostname
-            } catch {
-              // URL 파싱 실패 시 무시
-            }
-            const faviconUrl = `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${hostname}&size=64`
-
-            return (
-              <Link
-                key={link.id}
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group block w-full outline-none"
-              >
-                <Card className="cursor-pointer border border-border/40 bg-background/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
-                  <CardContent className="flex w-full items-center p-4 sm:p-5">
-                    <div className="relative flex w-full items-center justify-center">
-                      <div className="absolute left-0 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary/50 transition-colors group-hover:bg-primary/10">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img 
-                          src={faviconUrl} 
-                          alt={`${link.title} icon`} 
-                          className="h-6 w-6 object-contain"
-                          loading="lazy"
-                        />
-                      </div>
-                      <span className="text-base font-semibold tracking-tight transition-colors group-hover:text-primary sm:text-lg">
-                        {link.title}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            )
-          })}
-          {links.length === 0 && (
-            <div className="py-12 text-center text-muted-foreground">
-              등록된 링크가 없습니다.
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
+          ) : (
+            <>
+              {links.map((link) => {
+                let hostname = "example.com"
+                try {
+                  hostname = new URL(link.url).hostname
+                } catch {
+                  // URL 파싱 실패 시 무시
+                }
+                const faviconUrl = `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${hostname}&size=64`
+
+                return (
+                  <Link
+                    key={link.id}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group block w-full outline-none"
+                  >
+                    <Card className="cursor-pointer border border-border/40 bg-background/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+                      <CardContent className="flex w-full items-center p-4 sm:p-5">
+                        <div className="relative flex w-full items-center justify-center">
+                          <div className="absolute left-0 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary/50 transition-colors group-hover:bg-primary/10">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img 
+                              src={faviconUrl} 
+                              alt={`${link.title} icon`} 
+                              className="h-6 w-6 object-contain"
+                              loading="lazy"
+                            />
+                          </div>
+                          <span className="text-base font-semibold tracking-tight transition-colors group-hover:text-primary sm:text-lg">
+                            {link.title}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                )
+              })}
+              {links.length === 0 && (
+                <div className="py-12 text-center text-muted-foreground">
+                  등록된 링크가 없습니다.
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
