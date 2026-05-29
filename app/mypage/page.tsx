@@ -1,9 +1,10 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import { LinkItem } from "@/data/links"
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, getDocs, where, setDoc } from "firebase/firestore"
+import { collection, addDoc, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, getDocs, getDoc, where, setDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -34,9 +35,9 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>
 
 function LinkItemCard({ link }: { link: LinkItem }) {
+  const queryClient = useQueryClient()
   const [isEditing, setIsEditing] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -47,41 +48,52 @@ function LinkItemCard({ link }: { link: LinkItem }) {
     },
   })
 
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = form
+  const { register, handleSubmit, formState: { errors }, reset } = form
 
-  const handleUpdate = async (data: FormValues) => {
-    try {
+  const updateMutation = useMutation({
+    mutationFn: async (data: FormValues) => {
       await updateDoc(doc(db, "users", "anonymous", "links", link.id), {
         title: data.title,
         url: data.url,
         updatedAt: serverTimestamp(),
       })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["links", "anonymous"] })
       setIsEditing(false)
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error("링크 수정 중 오류 발생:", error)
       alert("링크를 수정하는 중 오류가 발생했습니다.")
     }
-  }
+  })
 
-  const handleDelete = async () => {
-    setIsDeleting(true)
-    try {
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
       await deleteDoc(doc(db, "users", "anonymous", "links", link.id))
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["links", "anonymous"] })
       setIsDeleteDialogOpen(false)
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error("링크 삭제 중 오류 발생:", error)
       alert("링크를 삭제하는 중 오류가 발생했습니다.")
-    } finally {
-      setIsDeleting(false)
     }
+  })
+
+  const handleUpdate = (data: FormValues) => {
+    updateMutation.mutate(data)
+  }
+
+  const handleDelete = () => {
+    deleteMutation.mutate()
   }
 
   const cancelEdit = () => {
     reset({ title: link.title, url: link.url })
     setIsEditing(false)
   }
-
-
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
     if (e.key === "Enter") {
@@ -92,6 +104,9 @@ function LinkItemCard({ link }: { link: LinkItem }) {
     }
   }
 
+  const isSubmitting = updateMutation.isPending
+  const isDeleting = deleteMutation.isPending
+
   if (isEditing) {
     return (
       <Card className="border border-primary/40 shadow-sm transition-all">
@@ -99,6 +114,11 @@ function LinkItemCard({ link }: { link: LinkItem }) {
           <form 
             onSubmit={handleSubmit(handleUpdate)}
             onKeyDown={handleKeyDown}
+            onBlur={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget)) {
+                handleSubmit(handleUpdate)()
+              }
+            }}
             className="flex flex-col gap-4"
           >
             <div className="flex flex-col gap-2">
@@ -170,7 +190,7 @@ function LinkItemCard({ link }: { link: LinkItem }) {
       >
         <Card className="cursor-pointer border border-border/40 bg-background/60 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 pr-20">
           <CardContent className="flex w-full items-center p-4 sm:p-5">
-            <div className="relative flex w-full items-center justify-center">
+            <div className="relative flex w-full items-center justify-center min-h-[44px]">
               <div className="absolute left-0 flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary/50 transition-colors group-hover:bg-primary/10">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img 
@@ -180,15 +200,10 @@ function LinkItemCard({ link }: { link: LinkItem }) {
                   loading="lazy"
                 />
               </div>
-              <div className="flex flex-col pl-14">
-                <span className="text-base font-semibold tracking-tight transition-colors group-hover:text-primary sm:text-lg">
+              <div className="flex w-full items-center justify-center px-14">
+                <span className="text-base font-semibold tracking-tight transition-colors group-hover:text-primary sm:text-lg text-center truncate">
                   {link.title}
                 </span>
-                {link.updatedAt && (
-                  <span className="text-xs text-muted-foreground mt-0.5">
-                    최근 수정: {formatDate(link.updatedAt)}
-                  </span>
-                )}
               </div>
             </div>
           </CardContent>
@@ -267,56 +282,111 @@ function LinkItemCard({ link }: { link: LinkItem }) {
 }
 
 export default function MyPage() {
-  const [links, setLinks] = useState<LinkItem[]>([])
-  const [profile, setProfile] = useState({ displayName: "서지민", bio: "Developer & Creator" })
+  const queryClient = useQueryClient()
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [editProfileData, setEditProfileData] = useState({ displayName: "", bio: "" })
-  const [isSavingProfile, setIsSavingProfile] = useState(false)
   const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(true)
   
-  useEffect(() => {
-    // 프로필 정보 가져오기
-    const userDocRef = doc(db, "users", "anonymous")
-    const unsubscribeProfile = onSnapshot(userDocRef, (docSnap) => {
+  const { data: profile = { displayName: "서지민", bio: "Developer & Creator" }, isLoading: isProfileLoading } = useQuery({
+    queryKey: ["profile", "anonymous"],
+    queryFn: async () => {
+      const userDocRef = doc(db, "users", "anonymous")
+      const docSnap = await getDoc(userDocRef)
       if (docSnap.exists()) {
         const data = docSnap.data()
-        setProfile({
+        return {
           displayName: data.displayName || "서지민",
           bio: data.bio || "Developer & Creator"
-        })
+        }
       } else {
-        // 기본 문서가 없으면 생성
-        setDoc(userDocRef, {
+        await setDoc(userDocRef, {
           displayName: "서지민",
           bio: "Developer & Creator",
           createdAt: serverTimestamp()
         })
+        return { displayName: "서지민", bio: "Developer & Creator" }
       }
-    })
+    }
+  })
 
-    const q = query(
-      collection(db, "users", "anonymous", "links"),
-      orderBy("createdAt", "desc")
-    )
-    
-    const unsubscribeLinks = onSnapshot(q, (snapshot) => {
-      const fetchedLinks = snapshot.docs.map((doc) => ({
+  const { data: links = [], isLoading: isLinksLoading } = useQuery({
+    queryKey: ["links", "anonymous"],
+    queryFn: async () => {
+      const q = query(
+        collection(db, "users", "anonymous", "links"),
+        orderBy("createdAt", "desc")
+      )
+      const snapshot = await getDocs(q)
+      return snapshot.docs.map(doc => ({
         id: doc.id,
         title: doc.data().title,
         url: doc.data().url,
         updatedAt: doc.data().updatedAt?.toDate() || null,
       })) as LinkItem[]
-      
-      setLinks(fetchedLinks)
-      setLoading(false)
-    })
-
-    return () => {
-      unsubscribeProfile()
-      unsubscribeLinks()
     }
-  }, [])
+  })
+
+  const addLinkMutation = useMutation({
+    mutationFn: async (data: FormValues) => {
+      await addDoc(collection(db, "users", "anonymous", "links"), {
+        title: data.title,
+        url: data.url,
+        createdAt: serverTimestamp(),
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["links", "anonymous"] })
+      form.reset()
+      setOpen(false)
+    },
+    onError: (error) => {
+      console.error("링크 추가 중 오류 발생:", error)
+      alert("링크를 추가하는 중 오류가 발생했습니다.")
+    }
+  })
+
+  const updateProfileMutation = useMutation({
+    mutationFn: async (newData: { displayName: string, bio: string }) => {
+      if (newData.displayName !== profile.displayName) {
+        const q = query(
+          collection(db, "users"),
+          where("displayName", "==", newData.displayName)
+        )
+        const querySnapshot = await getDocs(q)
+        
+        const isDuplicate = querySnapshot.docs.some(docSnap => docSnap.id !== "anonymous")
+        if (isDuplicate) {
+          throw new Error("이미 사용 중인 이름입니다.")
+        }
+      }
+
+      await updateDoc(doc(db, "users", "anonymous"), {
+        displayName: newData.displayName,
+        bio: newData.bio,
+        updatedAt: serverTimestamp(),
+      })
+    },
+    onMutate: async (newData) => {
+      await queryClient.cancelQueries({ queryKey: ["profile", "anonymous"] })
+      
+      const previousProfile = queryClient.getQueryData(["profile", "anonymous"])
+      
+      queryClient.setQueryData(["profile", "anonymous"], newData)
+      setIsEditingProfile(false) // 즉각적인 UI 반영
+      
+      return { previousProfile }
+    },
+    onError: (error: any, newData, context) => {
+      if (context?.previousProfile) {
+        queryClient.setQueryData(["profile", "anonymous"], context.previousProfile)
+      }
+      console.error("프로필 수정 중 오류 발생:", error)
+      alert(error.message || "프로필을 수정하는 중 오류가 발생했습니다.")
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile", "anonymous"] })
+    }
+  })
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -327,21 +397,10 @@ export default function MyPage() {
     },
   })
 
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = form
+  const { register, handleSubmit, formState: { errors }, reset } = form
 
-  const onSubmit = async (data: FormValues) => {
-    try {
-      await addDoc(collection(db, "users", "anonymous", "links"), {
-        title: data.title,
-        url: data.url,
-        createdAt: serverTimestamp(),
-      })
-      reset()
-      setOpen(false)
-    } catch (error) {
-      console.error("링크 추가 중 오류 발생:", error)
-      alert("링크를 추가하는 중 오류가 발생했습니다.")
-    }
+  const onSubmit = (data: FormValues) => {
+    addLinkMutation.mutate(data)
   }
 
   const handleOpenChange = (isOpen: boolean) => {
@@ -351,7 +410,7 @@ export default function MyPage() {
     }
   }
 
-  const handleSaveProfile = async () => {
+  const handleSaveProfile = () => {
     const newName = editProfileData.displayName.trim()
     const newBio = editProfileData.bio.trim()
     
@@ -365,40 +424,12 @@ export default function MyPage() {
       return
     }
 
-    setIsSavingProfile(true)
-    try {
-      if (newName !== profile.displayName) {
-        // 이름이 변경된 경우에만 중복 체크
-        const q = query(
-          collection(db, "users"),
-          where("displayName", "==", newName)
-        )
-        const querySnapshot = await getDocs(q)
-        
-        // 본인이 아닌 다른 문서 중에 해당 이름을 사용하는 문서가 있는지 확인
-        const isDuplicate = querySnapshot.docs.some(docSnap => docSnap.id !== "anonymous")
-        
-        if (isDuplicate) {
-          alert("이미 사용 중인 이름입니다.")
-          setIsSavingProfile(false)
-          return
-        }
-      }
-
-      await updateDoc(doc(db, "users", "anonymous"), {
-        displayName: newName,
-        bio: newBio,
-        updatedAt: serverTimestamp(),
-      })
-      
-      setIsEditingProfile(false)
-    } catch (error) {
-      console.error("프로필 수정 중 오류 발생:", error)
-      alert("프로필을 수정하는 중 오류가 발생했습니다.")
-    } finally {
-      setIsSavingProfile(false)
-    }
+    updateProfileMutation.mutate({ displayName: newName, bio: newBio })
   }
+
+  const isSubmittingLink = addLinkMutation.isPending
+  const isSavingProfile = updateProfileMutation.isPending
+  const loading = isProfileLoading || isLinksLoading
 
   return (
     <div className="flex min-h-svh flex-col items-center bg-slate-50 p-6 text-foreground dark:bg-zinc-950 md:p-12 lg:p-24 selection:bg-primary/20">
@@ -424,7 +455,18 @@ export default function MyPage() {
           
           <div className="w-full space-y-2">
             {isEditingProfile ? (
-              <div className="flex flex-col gap-3">
+              <form 
+                className="flex flex-col gap-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSaveProfile();
+                }}
+                onBlur={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget)) {
+                    handleSaveProfile();
+                  }
+                }}
+              >
                 <div className="flex flex-col gap-1">
                   <Input 
                     value={editProfileData.displayName}
@@ -443,14 +485,14 @@ export default function MyPage() {
                   />
                 </div>
                 <div className="flex justify-center gap-2 mt-2">
-                  <Button variant="outline" size="sm" onClick={() => setIsEditingProfile(false)} disabled={isSavingProfile}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setIsEditingProfile(false)} disabled={isSavingProfile}>
                     취소
                   </Button>
-                  <Button size="sm" onClick={handleSaveProfile} disabled={isSavingProfile} className="bg-[#5B5FC7] text-white hover:bg-[#5B5FC7]/90">
+                  <Button type="submit" size="sm" disabled={isSavingProfile} className="bg-[#5B5FC7] text-white hover:bg-[#5B5FC7]/90">
                     {isSavingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : "저장"}
                   </Button>
                 </div>
-              </div>
+              </form>
             ) : (
               <div 
                 className="group relative inline-flex flex-col items-center cursor-pointer p-2 rounded-lg hover:bg-secondary/50 transition-colors"
@@ -511,10 +553,10 @@ export default function MyPage() {
                 </div>
                 <Button 
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmittingLink}
                   className="mt-4 bg-[#5B5FC7] text-white hover:bg-[#5B5FC7]/90"
                 >
-                  {isSubmitting ? (
+                  {isSubmittingLink ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       추가 중...
